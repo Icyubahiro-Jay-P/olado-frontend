@@ -1,0 +1,24 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-primary: #1e1b4b;
+  --color-primary-light: #4338ca;
+  --color-accent: #f59e0b;
+  --color-accent-hover: #d97706;
+}
+
+* { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:999px; }
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  @apply bg-[#fcfcfd] text-zinc-900 antialiased;
+}
+.dark body { @apply bg-zinc-950 text-zinc-100; }
+
+/* utility */
+.glass { @apply bg-white/70 backdrop-blur-xl border border-white/20 dark:bg-zinc-900/70 dark:border-zinc-800; }
+.card-shadow { box-shadow: 0 8px 32px rgba(15,23,42,0.06), 0 2px 8px rgba(15,23,42,0.04); }
+.dark .card-shadow { box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
