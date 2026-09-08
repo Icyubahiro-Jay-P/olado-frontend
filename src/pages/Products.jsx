@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
-import { demoProducts } from '../utils/demoProducts';
+import { demoProducts, demoShops } from '../utils/demoProducts';
 import ProductCard from '../components/ProductCard';
+import Skeleton from '../components/ui/Skeleton';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 
 const categories = ['All','Electronics','Fashion','Home & Living','Beauty & Personal Care','Sports & Outdoors'];
@@ -10,15 +11,21 @@ const categories = ['All','Electronics','Fashion','Home & Living','Beauty & Pers
 export default function Products(){
   const [searchParams, setSearchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
+  const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
     search: searchParams.get('search')||'',
     category: searchParams.get('category')||'All',
+    seller: searchParams.get('seller')||'',
     minPrice: '',
     maxPrice: '',
     sort: 'newest',
   });
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(()=>{
+    api.get('/shops').then(({data})=>setShops(data)).catch(()=>setShops(demoShops));
+  },[]);
 
   const fetch = async () =>{
     setLoading(true);
@@ -26,6 +33,7 @@ export default function Products(){
       const params = new URLSearchParams();
       if(filters.search) params.set('search', filters.search);
       if(filters.category!=='All') params.set('category', filters.category);
+      if(filters.seller) params.set('seller', filters.seller);
       if(filters.minPrice) params.set('minPrice', filters.minPrice);
       if(filters.maxPrice) params.set('maxPrice', filters.maxPrice);
       if(filters.sort==='price-asc') params.set('sort','price-asc');
@@ -38,6 +46,7 @@ export default function Products(){
       let filtered = [...demoProducts];
       if(filters.search) filtered = filtered.filter(p=> p.name.toLowerCase().includes(filters.search.toLowerCase()));
       if(filters.category!=='All') filtered = filtered.filter(p=> p.category===filters.category);
+      if(filters.seller) filtered = filtered.filter(p=> p.seller===filters.seller);
       if(filters.minPrice) filtered = filtered.filter(p=> p.price>=Number(filters.minPrice));
       if(filters.maxPrice) filtered = filtered.filter(p=> p.price<=Number(filters.maxPrice));
       if(filters.sort==='price-asc') filtered.sort((a,b)=>a.price-b.price);
@@ -47,14 +56,21 @@ export default function Products(){
     } finally{ setLoading(false); }
   };
 
-  useEffect(()=>{ fetch(); // eslint-disable-next-line
-  },[filters.category, filters.sort]);
+  useEffect(()=>{
+    // deferred so no state is set synchronously within the effect body itself
+    const t = setTimeout(fetch, 0);
+    return ()=>clearTimeout(t);
+    // eslint-disable-next-line
+  },[filters.category, filters.seller, filters.sort]);
 
   useEffect(()=>{
-    const s = searchParams.get('search');
-    const c = searchParams.get('category');
-    if(s!==null) setFilters(f=>({...f, search:s}));
-    if(c!==null) setFilters(f=>({...f, category:c}));
+    const t = setTimeout(()=>{
+      const s = searchParams.get('search');
+      const c = searchParams.get('category');
+      if(s!==null) setFilters(f=>({...f, search:s}));
+      if(c!==null) setFilters(f=>({...f, category:c}));
+    }, 0);
+    return ()=>clearTimeout(t);
   },[searchParams]);
 
   const onSearchSubmit = (e)=>{
@@ -94,6 +110,15 @@ export default function Products(){
                 ))}
               </div>
             </div>
+            {shops.length>0 && (
+              <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
+                <h3 className="font-semibold text-sm">Shop</h3>
+                <select value={filters.seller} onChange={e=>setFilters({...filters, seller:e.target.value})} className="mt-3 w-full px-3 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-sm">
+                  <option value="">All shops</option>
+                  {shops.map(s=> <option key={s._id} value={s._id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
             <div className="border-t border-zinc-100 dark:border-zinc-800 pt-6">
               <h3 className="font-semibold text-sm">Price range</h3>
               <div className="flex gap-2 mt-3">
@@ -111,7 +136,7 @@ export default function Products(){
                 <option value="rating">Highest Rated</option>
               </select>
             </div>
-            <button onClick={()=>{setFilters({search:'',category:'All',minPrice:'',maxPrice:'',sort:'newest'}); setSearchParams({})}} className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white"><X size={14}/> Clear filters</button>
+            <button onClick={()=>{setFilters({search:'',category:'All',seller:'',minPrice:'',maxPrice:'',sort:'newest'}); setSearchParams({})}} className="w-full flex items-center justify-center gap-1.5 py-2 text-sm text-zinc-500 hover:text-zinc-900 dark:hover:text-white"><X size={14}/> Clear filters</button>
           </div>
         </aside>
 
@@ -119,7 +144,7 @@ export default function Products(){
         <div className="flex-1">
           {loading ? (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {[1,2,3,4,5,6].map(i=> <div key={i} className="h-[340px] bg-zinc-100 dark:bg-zinc-900 rounded-[20px] animate-pulse"/>)}
+              {[1,2,3,4,5,6].map(i=> <Skeleton key={i} className="h-[340px] rounded-[20px]"/>)}
             </div>
           ) : products.length===0 ? (
             <div className="text-center py-20 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-800">

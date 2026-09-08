@@ -1,21 +1,27 @@
 import { Link } from 'react-router-dom';
 import useWishlistStore from '../store/useWishlistStore';
 import useCartStore from '../store/useCartStore';
+import useCurrencyStore, { format } from '../store/useCurrencyStore';
+import EmptyState from '../components/ui/EmptyState';
 import toast from 'react-hot-toast';
 import { Heart, ShoppingBag, Trash2 } from 'lucide-react';
 
 export default function Wishlist(){
   const { items, remove } = useWishlistStore();
   const addToCart = useCartStore(s=>s.addToCart);
+  useCurrencyStore(s=>s.currency); // subscribe so prices re-render on currency switch
 
   if(items.length===0){
     return (
-      <div className="max-w-[700px] mx-auto px-6 py-20 text-center">
-        <div className="w-20 h-20 rounded-full bg-red-50 dark:bg-red-950 grid place-items-center mx-auto"><Heart size={28} className="text-red-400"/></div>
-        <h2 className="text-2xl font-black mt-6">Your wishlist is empty</h2>
-        <p className="text-sm text-zinc-500 mt-2">Tap the heart on any product to save it here.</p>
-        <Link to="/products" className="inline-block mt-6 px-7 py-3 rounded-full bg-zinc-900 text-white font-semibold dark:bg-white dark:text-zinc-900">Explore products</Link>
-      </div>
+      <EmptyState
+        icon={Heart}
+        title="Your wishlist is empty"
+        description="Tap the heart on any product to save it here."
+        ctaText="Explore products"
+        ctaTo="/products"
+        iconBg="bg-red-50 dark:bg-red-950"
+        iconColor="text-red-400"
+      />
     )
   }
 
@@ -30,7 +36,7 @@ export default function Wishlist(){
             </Link>
             <div className="p-4 flex-1 flex flex-col">
               <Link to={`/products/${p._id}`} className="font-semibold line-clamp-2 hover:text-indigo-600">{p.name}</Link>
-              <p className="text-sm font-black mt-2">${p.price}</p>
+              <p className="text-sm font-black mt-2">{format(p.price)}</p>
               <div className="flex gap-2 mt-4">
                 <button onClick={()=>{addToCart(p,1); toast.success('Moved to cart');}} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full bg-zinc-900 text-white text-sm font-semibold dark:bg-white dark:text-zinc-900"><ShoppingBag size={14}/> Move to cart</button>
                 <button onClick={()=>remove(p._id)} className="w-10 h-10 rounded-full border border-zinc-200 dark:border-zinc-700 grid place-items-center hover:bg-red-50 hover:text-red-500"><Trash2 size={16}/></button>

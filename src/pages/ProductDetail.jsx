@@ -5,8 +5,9 @@ import { demoProducts } from '../utils/demoProducts';
 import useCartStore from '../store/useCartStore';
 import useWishlistStore from '../store/useWishlistStore';
 import useAuthStore from '../store/useAuthStore';
+import useCurrencyStore, { format } from '../store/useCurrencyStore';
 import toast from 'react-hot-toast';
-import { Heart, Star, Minus, Plus, ShoppingBag, ShieldCheck, Truck, RotateCcw, ChevronLeft } from 'lucide-react';
+import { Heart, Star, Minus, Plus, ShoppingBag, ShieldCheck, Truck, RotateCcw, ChevronLeft, Store } from 'lucide-react';
 
 export default function ProductDetail(){
   const { id } = useParams();
@@ -17,7 +18,8 @@ export default function ProductDetail(){
   const [loading, setLoading] = useState(true);
   const addToCart = useCartStore(s=>s.addToCart);
   const { toggleWishlist, isWishlisted } = useWishlistStore();
-  const { user, token } = useAuthStore();
+  const { token } = useAuthStore();
+  useCurrencyStore(s=>s.currency); // subscribe so price re-renders on currency switch
 
   useEffect(()=>{
     api.get(`/products/${id}`).then(r=>setProduct(r.data)).catch(()=>{
@@ -43,6 +45,8 @@ export default function ProductDetail(){
   if(!product) return <div className="text-center py-20">Product not found. <Link to="/products" className="text-indigo-600 underline">Go back</Link></div>;
 
   const wish = isWishlisted(product._id);
+  const shopId = product.seller?.shop?._id || product.shopId;
+  const shopName = product.seller?.shop?.name || product.shopName;
 
   return (
     <div className="max-w-[1300px] mx-auto px-6 lg:px-8 py-8">
@@ -67,16 +71,23 @@ export default function ProductDetail(){
         <div>
           <span className="inline-block text-xs font-semibold tracking-widest px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600">{product.category} · {product.brand}</span>
           <h1 className="text-3xl font-black tracking-tight mt-3">{product.name}</h1>
-          <div className="flex items-center gap-3 mt-3">
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
             <span className="flex items-center gap-1 text-amber-500 font-bold"><Star size={16} className="fill-amber-500"/>{product.rating?.toFixed(1)} </span>
             <span className="text-sm text-zinc-500">({product.numReviews} reviews)</span>
             <span className={`ml-2 text-xs px-2.5 py-1 rounded-full font-semibold ${product.stock>0?'bg-emerald-50 text-emerald-700 dark:bg-emerald-950':'bg-red-50 text-red-600'}`}>{product.stock>0?`In stock (${product.stock})`:'Out of stock'}</span>
           </div>
+          {shopName && (
+            shopId ? (
+              <Link to={`/shops/${shopId}`} className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"><Store size={12}/> Sold by {shopName}</Link>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 mt-3 text-xs font-semibold px-3 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"><Store size={12}/> Sold by {shopName}</span>
+            )
+          )}
           <p className="text-zinc-600 dark:text-zinc-400 leading-relaxed mt-4">{product.description}</p>
 
           <div className="flex items-baseline gap-3 mt-6">
-            <span className="text-3xl font-black">${product.price}</span>
-            {product.originalPrice && <><span className="text-lg line-through text-zinc-400">${product.originalPrice}</span><span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">Save ${(product.originalPrice-product.price).toFixed(0)}</span></>}
+            <span className="text-3xl font-black">{format(product.price)}</span>
+            {product.originalPrice && <><span className="text-lg line-through text-zinc-400">{format(product.originalPrice)}</span><span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">Save {format(product.originalPrice-product.price)}</span></>}
           </div>
 
           {/* qty + cart */}

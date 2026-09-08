@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag, Heart, User, Menu, X, Sun, Moon, Sparkles } from 'lucide-react';
+import { Search, ShoppingBag, Heart, User, Menu, X, Sun, Moon } from 'lucide-react';
 import useCartStore from '../store/useCartStore';
 import useWishlistStore from '../store/useWishlistStore';
 import useAuthStore from '../store/useAuthStore';
 import useThemeStore from '../store/useThemeStore';
+import CurrencySwitcher from './CurrencySwitcher';
 import { useState, useEffect } from 'react';
 
 export default function Navbar(){
@@ -45,7 +46,9 @@ export default function Navbar(){
             <Link to="/products?category=Electronics" className="hover:text-indigo-600">Electronics</Link>
             <Link to="/products?category=Fashion" className="hover:text-indigo-600">Fashion</Link>
             <Link to="/about" className="hover:text-indigo-600">About</Link>
+            <Link to="/team" className="hover:text-indigo-600">Team</Link>
             <Link to="/faq" className="hover:text-indigo-600">FAQ</Link>
+            {user?.role==='seller' && <Link to="/seller/dashboard" className="text-indigo-600">Seller Dashboard</Link>}
             {user?.role==='admin' && <Link to="/admin" className="text-amber-600">Admin</Link>}
           </nav>
 
@@ -57,6 +60,7 @@ export default function Navbar(){
 
           {/* actions */}
           <div className="ml-auto flex items-center gap-1 sm:gap-2">
+            <CurrencySwitcher className="hidden sm:flex mr-1"/>
             <button onClick={toggle} className="w-9 h-9 grid place-items-center rounded-full hover:bg-zinc-100 dark:hover:bg-zinc-900">
               {dark ? <Sun size={18}/> : <Moon size={18}/>}
             </button>
@@ -103,7 +107,11 @@ export default function Navbar(){
           <Link to="/products?category=Fashion" onClick={()=>setMobile(false)} className="block py-2">Fashion</Link>
           <Link to="/products?category=Home & Living" onClick={()=>setMobile(false)} className="block py-2">Home & Living</Link>
           <Link to="/about" onClick={()=>setMobile(false)} className="block py-2">About</Link>
+          <Link to="/team" onClick={()=>setMobile(false)} className="block py-2">Team</Link>
           <Link to="/faq" onClick={()=>setMobile(false)} className="block py-2">FAQ</Link>
+          {user?.role==='seller' && <Link to="/seller/dashboard" onClick={()=>setMobile(false)} className="block py-2 text-indigo-600 font-semibold">Seller Dashboard</Link>}
+          {user?.role==='user' && <Link to="/become-seller" onClick={()=>setMobile(false)} className="block py-2 text-indigo-600 font-semibold">Become a Seller</Link>}
+          <div className="pt-2"><CurrencySwitcher/></div>
           {!user && <Link to="/login" onClick={()=>setMobile(false)} className="block mt-3 text-center py-3 rounded-full bg-zinc-900 text-white font-semibold">Sign in / Register</Link>}
         </div>
       )}

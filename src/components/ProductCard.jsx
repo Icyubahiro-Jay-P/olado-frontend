@@ -2,12 +2,14 @@ import { Link } from 'react-router-dom';
 import { Heart, Star, ShoppingBag } from 'lucide-react';
 import useWishlistStore from '../store/useWishlistStore';
 import useCartStore from '../store/useCartStore';
+import useCurrencyStore, { format } from '../store/useCurrencyStore';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
 export default function ProductCard({ product }){
   const { toggleWishlist, isWishlisted } = useWishlistStore();
   const addToCart = useCartStore(s=>s.addToCart);
+  useCurrencyStore(s=>s.currency); // subscribe so price re-renders on currency switch
   const wish = isWishlisted(product._id);
 
   return (
@@ -31,8 +33,8 @@ export default function ProductCard({ product }){
         <Link to={`/products/${product._id}`} className="mt-2 font-semibold leading-tight line-clamp-2 hover:text-indigo-600">{product.name}</Link>
         <p className="text-xs text-zinc-500 line-clamp-1 mt-1">{product.brand} · {product.stock>0? 'In stock':'Out of stock'}</p>
         <div className="mt-3 flex items-baseline gap-2">
-          <span className="text-lg font-black">${product.price}</span>
-          {product.originalPrice && <span className="text-xs line-through text-zinc-400">${product.originalPrice}</span>}
+          <span className="text-lg font-black">{format(product.price)}</span>
+          {product.originalPrice && <span className="text-xs line-through text-zinc-400">{format(product.originalPrice)}</span>}
         </div>
       </div>
     </motion.div>

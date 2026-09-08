@@ -10,6 +10,8 @@ const faqs = [
   { q:'Is my data secure?', a:'Absolutely. We use 256-bit SSL encryption, bcrypt password hashing, and JWT authentication. We never store full card numbers. This demo is for presentation purposes only.'},
   { q:'Can I cancel or change my order after placing it?', a:'You can cancel or modify your order within 1 hour of placing it from your Order History, as long as it has not entered “Shipped” status. After that, please initiate a return after delivery.'},
   { q:'Do you offer any discounts or loyalty program?', a:'Yes! New customers get 20% off with code WELCOME20. We also run seasonal sales and a loyalty program where you earn points on every purchase. Subscribe to our newsletter to be first to know.'},
+  { q:'How can I become a seller on this marketplace?', a:'You can join as a seller in two ways: register a new account and choose "Seller" instead of "Customer", or - if you already shop with us - open the Become a Seller page from your profile and add your shop details in under a minute. This demo auto-approves every shop instantly so you can start listing products right away. There are no fees to join.'},
+  { q:'How does the seller commission work?', a:'OLADO takes a small, configurable commission on every sale - currently a default of 10% - deducted automatically at the time each order is placed. Sellers always see the full picture: gross sales, commission paid and net earnings are broken down for every order right inside the Seller Dashboard, so there are never any surprises at payout time.'},
 ];
 
 export default function FAQ(){

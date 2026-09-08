@@ -8,6 +8,13 @@ const useAuthStore = create((set, get)=>({
     localStorage.setItem('olado_token', token);
     set({ user, token });
   },
+  // Update the stored user object without touching the token - used after
+  // actions like "become a seller" where the backend re-derives role/shop
+  // from the existing token on every request, so no re-login is needed.
+  updateUser: (user)=>{
+    localStorage.setItem('olado_user', JSON.stringify(user));
+    set({ user });
+  },
   logout: ()=>{
     localStorage.removeItem('olado_user');
     localStorage.removeItem('olado_token');

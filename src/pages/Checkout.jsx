@@ -1,46 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import useCartStore from '../store/useCartStore';
 import useAuthStore from '../store/useAuthStore';
+import useCurrencyStore, { format } from '../store/useCurrencyStore';
 import api from '../api/axios';
 import toast from 'react-hot-toast';
 import { useNavigate, Link } from 'react-router-dom';
-import { Check, CreditCard, Truck, User, MapPin } from 'lucide-react';
+import { Check, CreditCard, Truck, MapPin } from 'lucide-react';
 
 const steps = ['Cart Review','Shipping Information','Shipping Method','Payment','Confirmation'];
 
 export default function Checkout(){
-  const { items, getTotal, clearCart, shippingMethod, setShipping } = useCartStore();
+  const { items, getTotal, clearCart, shippingMethod, setShipping, hydrateFromAccount } = useCartStore();
   const { user, token } = useAuthStore();
+  const { currency } = useCurrencyStore();
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const { subtotal, shipping, tax, total } = getTotal();
-  const [form, setForm] = useState({ fullName: user?.name||'', address:'', city:'', postalCode:'', country:'USA', phone:'' });
+  const { subtotal, shipping: fallbackShipping, tax } = getTotal();
+  const [form, setForm] = useState({ fullName: user?.name||'', address:'', city:'', postalCode:'', country:'', phone:'' });
   const [pay, setPay] = useState({ card:'4242 4242 4242 4242', expiry:'12/28', cvv:'123', name: user?.name||'' });
   const [loading, setLoading] = useState(false);
-  const [orderId, setOrderId] = useState(null);
+  const [order, setOrder] = useState(null); // full order response from the server
 
-  if(items.length===0 && !orderId) return <div className="text-center py-20"><p className="font-semibold">Cart empty</p><Link to="/products" className="text-indigo-600 underline">Shop now</Link></div>;
+  // live shipping quote
+  const [quote, setQuote] = useState(null); // { cost, zoneLabel }
+  const [quoteLoading, setQuoteLoading] = useState(false);
+  const [quoteFailed, setQuoteFailed] = useState(false);
+  const quoteTimer = useRef(null);
+
+  useEffect(()=>{
+    clearTimeout(quoteTimer.current);
+    // debounce: everything - including the "no address yet" reset - happens
+    // inside the timer callback so no state is set synchronously in the effect.
+    quoteTimer.current = setTimeout(()=>{
+      if(!form.country || !form.city){ setQuote(null); setQuoteLoading(false); setQuoteFailed(false); return; }
+      setQuoteLoading(true);
+      setQuoteFailed(false);
+      api.post('/shipping/quote', { country: form.country, city: form.city, method: shippingMethod })
+        .then(({ data })=>{ setQuote(data); })
+        .catch(()=>{ setQuote(null); setQuoteFailed(true); })
+        .finally(()=>setQuoteLoading(false));
+    }, 450);
+    return ()=>clearTimeout(quoteTimer.current);
+  },[form.country, form.city, shippingMethod]);
+
+  if(items.length===0 && !order) return <div className="text-center py-20"><p className="font-semibold">Cart empty</p><Link to="/products" className="text-indigo-600 underline">Shop now</Link></div>;
+
+  // best available shipping estimate: live quote > static fallback
+  const displayShipping = quote?.cost ?? fallbackShipping;
+  const displayTotal = subtotal + tax + displayShipping;
 
   const next = ()=> setStep(s=> Math.min(s+1,5));
+
+  const validateShipping = ()=>{
+    if(!form.address || !form.city || !form.country){ toast.error('Please fill in address, city and country'); return false; }
+    return true;
+  };
+
   const placeOrder = async () =>{
     if(!token) { toast.error('Please login first'); navigate('/login'); return; }
     setLoading(true);
     try{
       const payload = {
-        orderItems: items.map(i=>({ product: i._id, name:i.name, image: i.image||i.images?.[0], price:i.price, quantity: i.quantity })),
-        shippingAddress: form, shippingMethod, shippingPrice: shipping, itemsPrice: subtotal, totalPrice: total, paymentMethod: 'Card (Demo)'
+        orderItems: items.map(i=>({ product: i._id, quantity: i.quantity })),
+        shippingAddress: form, shippingMethod, paymentMethod: 'Card (Demo)', currency
       };
       const { data } = await api.post('/orders', payload);
-      setOrderId(data._id);
+      setOrder(data);
       setStep(5);
       clearCart();
+      hydrateFromAccount();
       toast.success('Order placed!');
-    }catch(err){
-      // demo fallback - simulate success
+    }catch{
+      // demo fallback - simulate an authoritative server response
       const fakeId = 'DEMO-' + Math.random().toString(36).slice(2,9).toUpperCase();
-      setOrderId(fakeId);
+      setOrder({ _id: fakeId, itemsPrice: subtotal, taxPrice: tax, shippingPrice: displayShipping, totalPrice: subtotal+tax+displayShipping });
       setStep(5);
       clearCart();
+      hydrateFromAccount();
       toast.success('Order placed (demo mode)');
     } finally{ setLoading(false); }
   };
@@ -67,8 +103,8 @@ export default function Checkout(){
                 {items.map(i=>(
                   <div key={i._id} className="flex gap-3 items-center border border-zinc-100 dark:border-zinc-800 rounded-xl p-3">
                     <img src={i.image||i.images?.[0]} className="w-16 h-16 rounded-lg object-cover" alt=""/>
-                    <div className="flex-1"><p className="text-sm font-semibold">{i.name}</p><p className="text-xs text-zinc-500">Qty {i.quantity} · ${i.price}</p></div>
-                    <span className="font-bold text-sm">${(i.price*i.quantity).toFixed(2)}</span>
+                    <div className="flex-1"><p className="text-sm font-semibold">{i.name}</p><p className="text-xs text-zinc-500">Qty {i.quantity} · {format(i.price)}</p></div>
+                    <span className="font-bold text-sm">{format(i.price*i.quantity)}</span>
                   </div>
                 ))}
               </div>
@@ -82,10 +118,10 @@ export default function Checkout(){
                 {[
                   ['fullName','Full Name'],['address','Street Address'],['city','City'],['postalCode','Postal Code'],['country','Country'],['phone','Phone']
                 ].map(([k,label])=>(
-                  <label key={k} className="text-sm"><span className="font-medium">{label} *</span><input required value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} className="mt-1 w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"/></label>
+                  <label key={k} className="text-sm"><span className="font-medium">{label} *</span><input required value={form[k]} onChange={e=>setForm({...form,[k]:e.target.value})} placeholder={k==='country'?'e.g. Rwanda':k==='city'?'e.g. Kigali':''} className="mt-1 w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"/></label>
                 ))}
               </div>
-              <div className="flex gap-3 mt-6"><button onClick={()=>setStep(1)} className="flex-1 py-3 rounded-full border border-zinc-200 dark:border-zinc-700 font-semibold">Back</button><button onClick={()=>{ if(!form.address||!form.city) return toast.error('Fill address'); next();}} className="flex-1 py-3 rounded-full bg-zinc-900 text-white font-semibold dark:bg-white dark:text-zinc-900">Continue</button></div>
+              <div className="flex gap-3 mt-6"><button onClick={()=>setStep(1)} className="flex-1 py-3 rounded-full border border-zinc-200 dark:border-zinc-700 font-semibold">Back</button><button onClick={()=>{ if(validateShipping()) next(); }} className="flex-1 py-3 rounded-full bg-zinc-900 text-white font-semibold dark:bg-white dark:text-zinc-900">Continue</button></div>
             </div>
           )}
           {step===3 && (
@@ -95,13 +131,26 @@ export default function Checkout(){
                 <label onClick={()=>setShipping('Standard')} className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer ${shippingMethod==='Standard'?'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800':'border-zinc-200 dark:border-zinc-700'}`}>
                   <input type="radio" checked={shippingMethod==='Standard'} readOnly/>
                   <div className="flex-1"><p className="font-semibold text-sm">Standard Delivery</p><p className="text-xs text-zinc-500">3–5 business days · Free over $100</p></div>
-                  <span className="font-bold">{subtotal>100?'Free':'$9.00'}</span>
+                  <span className="font-bold">{subtotal>100?'Free':format(9)}</span>
                 </label>
                 <label onClick={()=>setShipping('Express')} className={`flex items-center gap-3 p-4 rounded-2xl border cursor-pointer ${shippingMethod==='Express'?'border-zinc-900 dark:border-white bg-zinc-50 dark:bg-zinc-800':'border-zinc-200 dark:border-zinc-700'}`}>
                   <input type="radio" checked={shippingMethod==='Express'} readOnly/>
                   <div className="flex-1"><p className="font-semibold text-sm">Express Delivery</p><p className="text-xs text-zinc-500">24 hours · Priority handling</p></div>
-                  <span className="font-bold">$19.00</span>
+                  <span className="font-bold">{format(19)}</span>
                 </label>
+
+                {/* live quote */}
+                <div className="rounded-2xl border border-dashed border-zinc-200 dark:border-zinc-700 p-4 text-sm">
+                  {quoteLoading ? (
+                    <p className="text-zinc-500">Calculating live shipping rate...</p>
+                  ) : quote ? (
+                    <p className="text-zinc-700 dark:text-zinc-300"><b>{quote.zoneLabel || `${form.city}, ${form.country}`}</b> · {shippingMethod} — <span className="font-bold">{format(quote.cost)}</span></p>
+                  ) : quoteFailed ? (
+                    <p className="text-zinc-500">Live rate unavailable right now - final shipping cost will be calculated at order placement. Estimated: {format(fallbackShipping)}.</p>
+                  ) : (
+                    <p className="text-zinc-500">Enter your address to see a live shipping quote.</p>
+                  )}
+                </div>
               </div>
               <div className="flex gap-3 mt-6"><button onClick={()=>setStep(2)} className="flex-1 py-3 rounded-full border font-semibold">Back</button><button onClick={next} className="flex-1 py-3 rounded-full bg-zinc-900 text-white font-semibold dark:bg-white dark:text-zinc-900">Continue to payment</button></div>
             </div>
@@ -118,15 +167,23 @@ export default function Checkout(){
                 </div>
                 <label className="text-sm"><span className="font-medium">Name on card</span><input value={pay.name} onChange={e=>setPay({...pay,name:e.target.value})} className="mt-1 w-full px-4 py-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800"/></label>
               </div>
-              <div className="flex gap-3 mt-6"><button onClick={()=>setStep(3)} className="flex-1 py-3 rounded-full border font-semibold">Back</button><button onClick={placeOrder} disabled={loading} className="flex-1 py-3 rounded-full bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50">{loading?'Processing...':'Pay $'+total.toFixed(2)}</button></div>
+              <div className="flex gap-3 mt-6"><button onClick={()=>setStep(3)} className="flex-1 py-3 rounded-full border font-semibold">Back</button><button onClick={placeOrder} disabled={loading} className="flex-1 py-3 rounded-full bg-indigo-600 text-white font-semibold hover:bg-indigo-700 disabled:opacity-50">{loading?'Processing...':'Pay '+format(displayTotal)}</button></div>
             </div>
           )}
-          {step===5 && (
+          {step===5 && order && (
             <div className="text-center py-8">
               <div className="w-16 h-16 rounded-full bg-emerald-500 text-white grid place-items-center mx-auto"><Check size={28}/></div>
               <h2 className="text-2xl font-black mt-4">Order confirmed!</h2>
-              <p className="text-sm text-zinc-500 mt-2">Order ID: <span className="font-mono font-bold text-zinc-900 dark:text-white">{orderId}</span></p>
+              <p className="text-sm text-zinc-500 mt-2">Order ID: <span className="font-mono font-bold text-zinc-900 dark:text-white">{order._id}</span></p>
               <p className="text-sm text-zinc-500 mt-1">A confirmation email has been sent (demo).</p>
+
+              <div className="max-w-[320px] mx-auto mt-6 bg-zinc-50 dark:bg-zinc-800 rounded-2xl p-5 text-sm text-left space-y-2">
+                <div className="flex justify-between"><span className="text-zinc-500">Items</span><span>{format(order.itemsPrice)}</span></div>
+                <div className="flex justify-between"><span className="text-zinc-500">Shipping</span><span>{format(order.shippingPrice)}</span></div>
+                <div className="flex justify-between"><span className="text-zinc-500">Tax</span><span>{format(order.taxPrice)}</span></div>
+                <div className="flex justify-between font-black border-t border-zinc-200 dark:border-zinc-700 pt-2"><span>Total</span><span>{format(order.totalPrice)}</span></div>
+              </div>
+
               <div className="flex gap-3 mt-8 justify-center">
                 <Link to="/products" className="px-6 py-3 rounded-full bg-zinc-900 text-white font-semibold dark:bg-white dark:text-zinc-900">Continue shopping</Link>
                 <Link to="/profile" className="px-6 py-3 rounded-full border font-semibold">View orders</Link>
@@ -139,10 +196,10 @@ export default function Checkout(){
         <div className="bg-white dark:bg-zinc-900 rounded-[24px] border border-zinc-200 dark:border-zinc-800 p-6 h-fit sticky top-[90px]">
           <h3 className="font-bold">Order summary</h3>
           <div className="mt-4 space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-zinc-500">Subtotal</span><span>${subtotal.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-zinc-500">Shipping ({shippingMethod})</span><span>${shipping.toFixed(2)}</span></div>
-            <div className="flex justify-between"><span className="text-zinc-500">Tax</span><span>${tax.toFixed(2)}</span></div>
-            <div className="flex justify-between font-black text-base border-t pt-3 mt-3"><span>Total</span><span>${total.toFixed(2)}</span></div>
+            <div className="flex justify-between"><span className="text-zinc-500">Subtotal</span><span>{format(subtotal)}</span></div>
+            <div className="flex justify-between"><span className="text-zinc-500">Shipping ({shippingMethod})</span><span>{format(displayShipping)}</span></div>
+            <div className="flex justify-between"><span className="text-zinc-500">Tax</span><span>{format(tax)}</span></div>
+            <div className="flex justify-between font-black text-base border-t pt-3 mt-3"><span>Total</span><span>{format(displayTotal)}</span></div>
           </div>
           <p className="text-xs text-zinc-400 mt-4 text-center">🔒 Encrypted · 30-day returns</p>
         </div>

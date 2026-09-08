@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Mail, Code2, Briefcase, Camera, ArrowUpRight } from 'lucide-react';
+import { Mail, Code2, Briefcase, Camera } from 'lucide-react';
 
 export default function Footer(){
   return (

@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -13,7 +14,13 @@ import Profile from './pages/Profile';
 import Admin from './pages/Admin';
 import FAQ from './pages/FAQ';
 import About from './pages/About';
+import SellerDashboard from './pages/SellerDashboard';
+import BecomeSeller from './pages/BecomeSeller';
+import Shop from './pages/Shop';
+import Team from './pages/Team';
 import useAuthStore from './store/useAuthStore';
+import useCartStore from './store/useCartStore';
+import useWishlistStore from './store/useWishlistStore';
 
 function Protected({ children }){
   const token = useAuthStore(s=>s.token);
@@ -26,8 +33,25 @@ function AdminRoute({ children }){
   if(user?.role!=='admin') return <div className="text-center py-20">Admin only. Login as admin@olado.com / admin123</div>;
   return children;
 }
+function SellerRoute({ children }){
+  const { user, token } = useAuthStore();
+  if(!token) return <Navigate to="/login" replace/>;
+  if(user?.role!=='seller') return <div className="text-center py-20"><p className="font-bold">Seller access required</p><p className="text-sm text-zinc-500 mt-1">Open a shop to unlock the Seller Dashboard.</p><Link to="/become-seller" className="inline-block mt-4 px-6 py-2.5 rounded-full bg-zinc-900 text-white text-sm font-semibold dark:bg-white dark:text-zinc-900">Become a seller</Link></div>;
+  return children;
+}
 
 export default function App(){
+  const token = useAuthStore(s=>s.token);
+  const hydrateCart = useCartStore(s=>s.hydrateFromAccount);
+  const hydrateWishlist = useWishlistStore(s=>s.hydrateFromAccount);
+
+  // On initial mount (e.g. a page refresh with an existing session), pull
+  // the account's cart/wishlist and merge with whatever is in localStorage.
+  useEffect(()=>{
+    if(token){ hydrateCart(); hydrateWishlist(); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
   return (
     <BrowserRouter>
       <div className="min-h-screen flex flex-col bg-[#fcfcfd] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100">
@@ -44,6 +68,10 @@ export default function App(){
             <Route path="/register" element={<Auth mode="register"/>}/>
             <Route path="/profile" element={<Protected><Profile/></Protected>}/>
             <Route path="/admin" element={<AdminRoute><Admin/></AdminRoute>}/>
+            <Route path="/seller/dashboard" element={<SellerRoute><SellerDashboard/></SellerRoute>}/>
+            <Route path="/become-seller" element={<Protected><BecomeSeller/></Protected>}/>
+            <Route path="/shops/:id" element={<Shop/>}/>
+            <Route path="/team" element={<Team/>}/>
             <Route path="/faq" element={<FAQ/>}/>
             <Route path="/about" element={<About/>}/>
             <Route path="*" element={<div className="text-center py-20"><h2 className="text-2xl font-black">404 - Not found</h2><p className="text-zinc-500">Go back <a href="/" className="text-indigo-600 underline">home</a></p></div>}/>

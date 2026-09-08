@@ -1,4 +1,15 @@
-export const demoProducts = [
+// Cosmetic offline-fallback seller info. Matches the 5 shop names/categories
+// seeded on the backend, but the seller ids below are purely local fixtures -
+// they don't need to (and won't) match real backend ObjectIds.
+const shopsByCategory = {
+  'Electronics': { seller: 'demo-seller-techhub', shopName: 'TechHub Kigali' },
+  'Fashion': { seller: 'demo-seller-urbanthreads', shopName: 'Urban Threads' },
+  'Home & Living': { seller: 'demo-seller-homestyle', shopName: 'HomeStyle Rwanda' },
+  'Beauty & Personal Care': { seller: 'demo-seller-glowbeauty', shopName: 'GlowBeauty' },
+  'Sports & Outdoors': { seller: 'demo-seller-activegear', shopName: 'ActiveGear' },
+};
+
+const raw = [
   {
     _id: "demo1",
     name: "Aurora Wireless Headphones",
@@ -128,4 +139,14 @@ export const demoProducts = [
     images: ["https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=800"],
     category: "Home & Living", brand: "Aether", stock: 40, rating: 4.9, numReviews: 31, featured: true, reviews:[]
   },
+];
+
+export const demoProducts = raw.map(p => ({ ...p, ...shopsByCategory[p.category] }));
+
+export const demoShops = [
+  { _id: 'demo-shop-techhub', name: 'TechHub Kigali', description: 'Curated electronics and gadgets for the modern Rwandan household.', category: 'Electronics', logo: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=200', banner: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?w=1200', status: 'approved', featured: true },
+  { _id: 'demo-shop-urbanthreads', name: 'Urban Threads', description: 'Contemporary fashion staples, made to last a lifetime of wear.', category: 'Fashion', logo: 'https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=200', banner: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=1200', status: 'approved', featured: true },
+  { _id: 'demo-shop-homestyle', name: 'HomeStyle Rwanda', description: 'Warm, handmade pieces for a home that feels like you.', category: 'Home & Living', logo: 'https://images.unsplash.com/photo-1567016432779-094069958ea5?w=200', banner: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1200', status: 'approved', featured: true },
+  { _id: 'demo-shop-glowbeauty', name: 'GlowBeauty', description: 'Clean, effective beauty and personal care - science first.', category: 'Beauty & Personal Care', logo: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=200', banner: 'https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=1200', status: 'approved', featured: false },
+  { _id: 'demo-shop-activegear', name: 'ActiveGear', description: 'Gear built for trail, gym and everything in between.', category: 'Sports & Outdoors', logo: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=200', banner: 'https://images.unsplash.com/photo-1551698618-1dfe5d97d256?w=1200', status: 'approved', featured: false },
 ];
