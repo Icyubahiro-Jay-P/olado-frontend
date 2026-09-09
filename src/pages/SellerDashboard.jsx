@@ -39,7 +39,7 @@ export default function SellerDashboard(){
 
     api.get('/analytics/seller').then(({data})=>setStats(data)).catch(()=>setStats({
       grossSales: 2840, commissionPaid: 284, netEarnings: 2556, productCount: 6, orderCount: 14,
-      recentOrders: [{ _id:'DEMO-ORD-1', createdAt:new Date().toISOString(), totalPrice: 249, status:'Processing' }]
+      recentOrders: [{ _id:'DEMO-ORD-1', createdAt:new Date().toISOString(), mySubtotal: 249, orderStatus:'Processing' }]
     }));
 
     api.get('/categories').then(({data})=>setCategories(data)).catch(()=>setCategories(CATEGORY_FALLBACK.map(name=>({ _id:name, name }))));
@@ -186,8 +186,8 @@ export default function SellerDashboard(){
                   {stats.recentOrders.map(o=>(
                     <div key={o._id} className="flex items-center justify-between text-sm border-t border-zinc-100 dark:border-zinc-800 pt-2 first:border-0 first:pt-0">
                       <span className="font-mono text-xs text-zinc-500">{o._id?.slice(-10)}</span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400">{o.status}</span>
-                      <span className="font-bold">{format(o.totalPrice)}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950 text-amber-700 dark:text-amber-400">{o.orderStatus}</span>
+                      <span className="font-bold">{format(o.mySubtotal)}</span>
                     </div>
                   ))}
                 </div>
@@ -262,7 +262,7 @@ export default function SellerDashboard(){
                 </div>
                 <p className="text-xs text-zinc-500 mt-2">Ships to: {o.shippingAddress?.city}, {o.shippingAddress?.country} · {o.shippingAddress?.fullName}</p>
                 <div className="mt-3 space-y-2">
-                  {(o.orderItems||[]).map(it=>(
+                  {(o.items||[]).map(it=>(
                     <div key={it.product?._id || it.product} className="flex items-center gap-3 text-sm border-t border-zinc-100 dark:border-zinc-800 pt-2">
                       <img src={it.image} alt="" className="w-10 h-10 rounded-lg object-cover"/>
                       <span className="flex-1">{it.name} ×{it.quantity}</span>
